@@ -132,3 +132,6 @@ dist
 # keys and secrets
 /admin
 /tile-images
+/common
+package-lock.json
+/fracto-temp

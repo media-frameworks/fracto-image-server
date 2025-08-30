@@ -1,14 +1,16 @@
-const express = require("express");
-const cors = require('cors');
-const server = require('./admin/server.json')
-const Flickr = require('flickr-sdk');
-const flickr_keys = require('./admin/flickr.json')
-const axios = require("axios");
-const fs = require('fs');
+import express from "express";
+import cors from "cors";
+import {createCanvas} from "canvas";
+import server from "./admin/server.json" with {type: "json"};
+
+import {
+   get_manifest,
+   init_canvas_buffer,
+   fill_canvas_buffer,
+} from "./fracto/FractoTileData.js"
 
 const app = express();
 const PORT = server.port
-const PHOTOSET_ID = '72177720308427601'
 
 app.use(express.json({limit: '50mb'}));
 
@@ -16,117 +18,48 @@ app.use(cors({
    origin: "*"
 }));
 
-app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
+let load_completed = false
+get_manifest(
+   (update_json) => {
+      console.log(`[${update_json.packet_index + 1}/${update_json.packet_count}]: ${update_json.manifest_file}`);
+   },
+   (complete_msg) => {
+      console.log(complete_msg);
+      load_completed = true
+      app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
+   },
+)
 
-var oauth = new Flickr.OAuth(
-   flickr_keys.Key,
-   flickr_keys.Secret
-);
-console.log("flickr oauth", oauth)
-
-var oauth_verifier = null
-var oauth_token = null
-var oauth_token_secret = null
-
-app.get("/access", (req, result) => {
-   if (oauth_verifier) {
-      result.send({
-         oauth_verifier: oauth_verifier,
-         oauth_token: oauth_token,
-         oauth_token_secret: oauth_token_secret
-      })
-   } else {
-      oauth.request(`http://localhost:${PORT}/oauth/callback`).then(function (res) {
-         console.log('oauth request succeeded', res.body);
-         var url = oauth.authorizeUrl(res.body.oauth_token, "write"); // "https://www.flickr.com/services/oauth..."
-         console.log("access requested, returns:", url)
-         oauth_token_secret = res.body.oauth_token_secret
-         result.send({
-            url: url,
-            api_key: flickr_keys.Key,
-            api_secret: flickr_keys.Secret,
-            oauth_token: res.body.oauth_token,
-            oauth_token_secret: res.body.oauth_token_secret
-         });
-      }).catch(function (err) {
-         console.error('bonk', err);
-      });
+// test with:
+// http://localhost:3005/render_image?re=-1.255429537592117&im=0.05058453422756254&scope=0.0932&aspect_ratio=1.0&width_px=500
+app.get("/render_image", (req, res) => {
+   if (!load_completed) {
+      console.log('cannot render until load completed')
+      return
    }
+   console.log('render_image params', JSON.stringify(req.query))
+   const focal_point = {
+      x: parseFloat(req.query.re),
+      y: parseFloat(req.query.im),
+   }
+   const width_px = parseInt(req.query.width_px, 10)
+   const aspect_ratio = parseFloat(req.query.aspect_ratio, 10)
+   const height_px = width_px * aspect_ratio
+   const scope = parseFloat(req.query.scope, 10)
+   const canvas_buffer = init_canvas_buffer(
+      width_px,
+      aspect_ratio
+   )
+   const canvas = createCanvas(width_px, height_px);
+   const ctx = canvas.getContext('2d');
+   console.log('ctx', ctx)
+   fill_canvas_buffer(
+      canvas_buffer,
+      ctx,
+      width_px,
+      focal_point,
+      scope,
+      aspect_ratio
+   )
+   // console.log('canvas_buffer',canvas_buffer)
 });
-
-app.get("/oauth/callback", (req, res) => {
-   console.log("/oauth/callback!!!", req.query)
-   const requestToken = req.query.code;
-   if (requestToken) {
-      axios({
-         method: "get",
-         url: `https://www.flickr.com/services/oauth/request_token?client_id=${flickr_keys.Key}&client_secret=${flickr_keys.Secret}&code=${requestToken}`,
-         headers: {accept: "application/json",},
-      }).then((response) => {
-         const accessToken = response.data.access_token;
-         console.log("accessToken", accessToken)
-      });
-   }
-   if (req.query.oauth_verifier) {
-      oauth_verifier = req.query.oauth_verifier
-      oauth_token = req.query.oauth_token
-   }
-});
-
-app.post("/upload", (req, result) => {
-
-   const img = req.body.file;
-   var regex = /^data:.+\/(.+);base64,(.*)$/;
-   const img_name = req.body.name;
-   console.log("uploading file, stand by...", img_name)
-
-   var matches = img.match(regex);
-   var ext = matches[1];
-   var data = matches[2];
-   var buffer = Buffer.from(data, 'base64');
-
-   const filename = `./tile-images/${img_name}.${ext}`
-   console.log("saving file", filename)
-   fs.writeFileSync(filename, buffer);
-
-   oauth.verify(oauth_token, oauth_verifier, oauth_token_secret).then(function (res) {
-      console.log('oauth token:', res.body.oauth_token);
-      console.log('oauth token secret:', res.body.oauth_token_secret);
-
-      const access_oauth = Flickr.OAuth.createPlugin(
-         flickr_keys.Key,
-         flickr_keys.Secret,
-         res.body.oauth_token,
-         res.body.oauth_token_secret
-      )
-      const level = req.body.name.length
-      var upload = new Flickr.Upload(access_oauth, filename, {
-         title: `${img_name}`,
-         description: `Level ${level} tile rendering`,
-         tags: `fracto level-${level}`,
-         is_public: true
-      });
-      upload.then(function (res) {
-         const photo_id = res.body.photoid._content
-         console.log('new photoid:', photo_id);
-         const flickr = new Flickr(access_oauth);
-         const params = {
-            api_key: flickr_keys.Key,
-            photoset_id: PHOTOSET_ID,
-            photo_id: photo_id
-         }
-         console.log("params", params)
-         flickr.photosets.addPhoto(params)
-            .catch(function (err) {
-               console.log('bonk flickr.photosets.addPhoto', err);
-            });
-         result.send(photo_id)
-      }).catch(function (err) {
-         console.error('bonk upload', err);
-      });
-
-   }).catch(function (err) {
-      console.log('bonk oauth.verify', err);
-   });
-
-})
