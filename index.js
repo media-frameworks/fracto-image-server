@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import {createCanvas} from "canvas";
-import server from "./admin/server.json" with {type: "json"};
+import server from "./common/config/server.json" with {type: "json"};
 
 import {
    get_manifest,
