@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # keys and secrets
-/admin
+/archive/admin
 /tile-images
 /common
 package-lock.json

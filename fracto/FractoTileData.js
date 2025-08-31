@@ -1,6 +1,5 @@
 import axios from "axios";
 import {Buffer} from "buffer";
-import {decompressSync, strToU8} from "fflate";
 import FractoIndexedTiles, {TILE_SET_INDEXED} from "./FractoIndexedTiles.js";
 import network from "./../common/config/network.json" with {type: "json"};
 import FractoFastCalc from "./FractoFastCalc.js";
