@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import fs from "fs";
 import {createCanvas} from "canvas";
 import server from "./common/config/server.json" with {type: "json"};
 
@@ -61,5 +62,8 @@ app.get("/render_image", (req, res) => {
       scope,
       aspect_ratio
    )
-   // console.log('canvas_buffer',canvas_buffer)
+   console.log('canvas_buffer',canvas_buffer)
+   const buffer = canvas.toDataURL("image/jpeg"); // Or 'image/jpeg'
+   fs.writeFileSync('./output.jpg', buffer); // Saves as output.png
+   console.log('Image saved successfully!');
 });

@@ -1,7 +1,7 @@
 import network from "../common/config/network.json" with {type: 'json'}
-import {decompressSync} from "fflate";
 import {Buffer} from "buffer";
 import axios from "axios";
+import zlib from "zlib";
 
 export var CACHED_TILES = {}
 
@@ -15,8 +15,9 @@ const MIN_CACHE = 250
 const MAX_CACHE = 750
 
 const AXIOS_CONFIG = {
-   responseType: 'blob',
+   responseType: 'arraybuffer',
    headers: {
+      'Content-Type': 'arraybuffer',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Expose-Headers': 'Access-Control-*',
       'Access-Control-Allow-Methods': 'GET,PUT,POST,PATCH,OPTIONS',
@@ -34,12 +35,11 @@ export class FractoTileCache {
          const response = await axios.get(url, AXIOS_CONFIG);
          const blob = new Blob([response.data], {type: 'application/gzip'});
          const arrayBuffer = await blob.arrayBuffer();
-         const buffer = Buffer.from(arrayBuffer);
-         const decompressed = decompressSync(buffer);
+         const decompressed = zlib.gunzipSync(arrayBuffer);
          const ascii = Buffer.from(decompressed, 'ascii');
          return JSON.parse(ascii.toString());
       } catch (error) {
-         console.log('get_tile_url error', error.message);
+         console.log('get_tile_url error', url, error.message);
          return null
       }
    }

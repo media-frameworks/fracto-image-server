@@ -280,7 +280,5 @@ const raster_fill = async (
          }
       }
    }
-   if (unfound > 0) {
-      console.log('unfound', unfound)
-   }
+   console.log('unfound', unfound)
 }
