@@ -9,6 +9,7 @@ import {
    init_canvas_buffer,
    fill_canvas_buffer,
 } from "./fracto/FractoTileData.js"
+import FractoColors from "./fracto/FractoColors.js";
 
 const app = express();
 const PORT = server.port
@@ -33,7 +34,7 @@ get_manifest(
 
 // test with:
 // http://localhost:3005/render_image?re=-1.255429537592117&im=0.05058453422756254&scope=0.0932&aspect_ratio=1.0&width_px=500
-app.get("/render_image", (req, res) => {
+app.get("/render_image", async (req, res) => {
    if (!load_completed) {
       console.log('cannot render until load completed')
       return
@@ -47,21 +48,19 @@ app.get("/render_image", (req, res) => {
    const aspect_ratio = parseFloat(req.query.aspect_ratio, 10)
    const height_px = width_px * aspect_ratio
    const scope = parseFloat(req.query.scope, 10)
-   const canvas_buffer = init_canvas_buffer(
-      width_px,
-      aspect_ratio
-   )
-   const canvas = createCanvas(width_px, height_px);
-   const ctx = canvas.getContext('2d');
-   console.log('ctx', ctx)
-   fill_canvas_buffer(
+   const canvas_buffer = init_canvas_buffer(width_px, aspect_ratio)
+   await fill_canvas_buffer(
       canvas_buffer,
-      ctx,
       width_px,
       focal_point,
       scope,
       aspect_ratio
    )
+
+   const canvas = createCanvas(width_px, height_px);
+   const ctx = canvas.getContext('2d');
+   FractoColors.buffer_to_canvas(canvas_buffer, ctx)
+
    const buffer = canvas.toBuffer('image/jpeg');
    fs.writeFileSync('./output.jpg', buffer); // Saves as output.png
    console.log('Image saved successfully!');

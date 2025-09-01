@@ -147,7 +147,6 @@ export class FractoColors {
             const key = `_${pixel.iteration}`
             const grey_value = not_pattern_greys_map[key]
             ctx.fillStyle = `rgb(${grey_value},${grey_value},${grey_value})`
-            console.log('all_not_pattern_pixels ctx.fillStyle',ctx.fillStyle)
             ctx.fillRect(scale_factor * pixel.canvas_x, scale_factor * pixel.canvas_y,
                pixel_size, pixel_size);
          })
@@ -158,7 +157,6 @@ export class FractoColors {
             const lum_factor = pattern_greys_map[key]
             const hue = FractoColors.pattern_hue(pixel.pattern)
             ctx.fillStyle = `hsl(${hue}, 80%, ${100 - lum_factor}%)`
-            console.log('all_pattern_pixels ctx.fillStyle',ctx.fillStyle)
             ctx.fillRect(scale_factor * pixel.canvas_x, scale_factor * pixel.canvas_y,
                pixel_size, pixel_size);
          })

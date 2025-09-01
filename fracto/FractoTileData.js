@@ -3,7 +3,6 @@ import {Buffer} from "buffer";
 import FractoIndexedTiles, {TILE_SET_INDEXED} from "./FractoIndexedTiles.js";
 import network from "./../common/config/network.json" with {type: "json"};
 import FractoFastCalc from "./FractoFastCalc.js";
-import FractoColors from "./FractoColors.js";
 import FractoTileCache from "./FractoTileCache.js";
 
 var BAD_TILES = {};
@@ -167,7 +166,6 @@ export const init_canvas_buffer = (width_px, aspect_ratio) => {
 
 export const fill_canvas_buffer = async (
    canvas_buffer,
-   ctx,
    width_px,
    focal_point,
    scope,
@@ -200,20 +198,16 @@ export const fill_canvas_buffer = async (
    await raster_fill(
       canvas_buffer,
       level_data_sets,
-      ctx,
       width_px,
       focal_point,
       scope,
       aspect_ratio
    )
-   console.log('buffer_to_canvas')
-   FractoColors.buffer_to_canvas(canvas_buffer, ctx)
 }
 
 const raster_fill = async (
    canvas_buffer,
    level_data_sets,
-   ctx,
    width_px,
    focal_point,
    scope,
