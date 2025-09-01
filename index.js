@@ -3,6 +3,8 @@ import cors from "cors";
 import fs from "fs";
 import {createCanvas} from "canvas";
 import server from "./common/config/server.json" with {type: "json"};
+import { exiftool } from "exiftool-vendored";
+import * as path from 'path';
 
 import {
    get_manifest,
@@ -61,7 +63,26 @@ app.get("/render_image", async (req, res) => {
    const ctx = canvas.getContext('2d');
    FractoColors.buffer_to_canvas(canvas_buffer, ctx)
 
+   const filePath ='./output.jpg'
    const buffer = canvas.toBuffer('image/jpeg');
-   fs.writeFileSync('./output.jpg', buffer); // Saves as output.png
+   fs.writeFileSync(filePath, buffer); // Saves as output.png
    console.log('Image saved successfully!');
+
+   try {
+      await exiftool.write(filePath, {
+         Title: 'Your Title Here',
+         Artist: 'Your Name Here',
+         Software: 'Fracto-image-server',
+         Copyright: '(c) 2025 Fracto Chaotic Systems Group',
+         DateTimeOriginal: new Date().toISOString(),
+         Subject: 'fractals,math,art,mandelbrot',
+         Comment: '{image data in json form}',
+         Comments: '{image data in json form}'
+      });
+      console.log('EXIF data added successfully!');
+   } catch (err) {
+      console.error('Error adding EXIF data:', err);
+   } finally {
+      exiftool.end(); // Important: close the ExifTool process
+   }
 });
