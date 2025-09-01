@@ -3,8 +3,24 @@ import cors from "cors";
 import fs from "fs";
 import {createCanvas} from "canvas";
 import server from "./common/config/server.json" with {type: "json"};
-import { exiftool } from "exiftool-vendored";
-import * as path from 'path';
+import aws from "./common/config/aws.json" with {type: "json"};
+import {exiftool} from "exiftool-vendored";
+import {execSync} from "child_process";
+
+import AWS from 'aws-sdk'
+
+var accessKeyId = aws.accessKeyId;
+var secretAccessKey = aws.secretAccessKey;
+AWS.config.update({
+   accessKeyId: accessKeyId,
+   secretAccessKey: secretAccessKey
+});
+var s3 = new AWS.S3();
+
+const image_dir = "./images";
+if (!fs.existsSync(image_dir)){
+   fs.mkdirSync(image_dir)
+}
 
 import {
    get_manifest,
@@ -51,6 +67,8 @@ app.get("/render_image", async (req, res) => {
    const height_px = width_px * aspect_ratio
    const scope = parseFloat(req.query.scope, 10)
    const canvas_buffer = init_canvas_buffer(width_px, aspect_ratio)
+
+   const time_0 = performance.now()
    await fill_canvas_buffer(
       canvas_buffer,
       width_px,
@@ -58,15 +76,26 @@ app.get("/render_image", async (req, res) => {
       scope,
       aspect_ratio
    )
+   const time_1 = performance.now()
 
    const canvas = createCanvas(width_px, height_px);
    const ctx = canvas.getContext('2d');
    FractoColors.buffer_to_canvas(canvas_buffer, ctx)
 
-   const filePath ='./output.jpg'
-   const buffer = canvas.toBuffer('image/jpeg');
-   fs.writeFileSync(filePath, buffer); // Saves as output.png
-   console.log('Image saved successfully!');
+   const time_2 = performance.now()
+
+   const random_name = `img_${Math.round(Math.random() * 100000000)}`
+   const filename = `${random_name}.jpg`
+   const filePath = `./images/${filename}`
+   try {
+      const buffer = canvas.toBuffer('image/jpeg');
+      fs.writeFileSync(filePath, buffer); // Saves as output.png
+      console.log('Image saved successfully!');
+   } catch (e) {
+      console.log('error writing file', e.message)
+   }
+
+   const time_3 = performance.now()
 
    try {
       await exiftool.write(filePath, {
@@ -85,4 +114,27 @@ app.get("/render_image", async (req, res) => {
    } finally {
       exiftool.end(); // Important: close the ExifTool process
    }
+
+   const time_4 = performance.now()
+
+   try {
+      const cmd = `aws s3 cp ${filePath} s3://mikehallstudio/fracto/images/`
+      console.log('uploading to s3', cmd)
+      execSync(cmd)
+      console.log('upload completed')
+   } catch (e) {
+      console.log('Error uploading to s3', e.message);
+   }
+
+   const time_5 = performance.now()
+   const result = {
+      fill_canvas_buffer: `${time_1 - time_0}`,
+      buffer_to_canvas: `${time_2 - time_1}`,
+      writeFileSync: `${time_3 - time_2}`,
+      exiftool: `${time_4 - time_3}`,
+      s3_upload: `${time_5 - time_4}`,
+      total: `${time_5 - time_0}`,
+   }
+   console.log('result', result)
+
 });
