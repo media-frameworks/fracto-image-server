@@ -18,7 +18,7 @@ AWS.config.update({
 var s3 = new AWS.S3();
 
 const image_dir = "./images";
-if (!fs.existsSync(image_dir)){
+if (!fs.existsSync(image_dir)) {
    fs.mkdirSync(image_dir)
 }
 
@@ -81,7 +81,6 @@ app.get("/render_image", async (req, res) => {
    const canvas = createCanvas(width_px, height_px);
    const ctx = canvas.getContext('2d');
    FractoColors.buffer_to_canvas(canvas_buffer, ctx)
-
    const time_2 = performance.now()
 
    const random_name = `img_${Math.round(Math.random() * 100000000)}`
@@ -94,8 +93,17 @@ app.get("/render_image", async (req, res) => {
    } catch (e) {
       console.log('error writing file', e.message)
    }
-
    const time_3 = performance.now()
+
+   const result = {
+      width_px,
+      height_px,
+      aspect_ratio,
+      focal_point,
+      scope,
+      filename,
+      public_url: `https://mikehallstudio.s3.us-east-1.amazonaws.com/fracto/images/${filename}`,
+   }
 
    try {
       await exiftool.write(filePath, {
@@ -105,29 +113,25 @@ app.get("/render_image", async (req, res) => {
          Copyright: '(c) 2025 Fracto Chaotic Systems Group',
          DateTimeOriginal: new Date().toISOString(),
          Subject: 'fractals,math,art,mandelbrot',
-         Comment: '{image data in json form}',
-         Comments: '{image data in json form}'
+         Comments: JSON.stringify(result),
       });
       console.log('EXIF data added successfully!');
    } catch (err) {
       console.error('Error adding EXIF data:', err);
-   } finally {
-      exiftool.end(); // Important: close the ExifTool process
    }
-
    const time_4 = performance.now()
 
    try {
-      const cmd = `aws s3 cp ${filePath} s3://mikehallstudio/fracto/images/`
+      const cmd = `aws s3 cp ${filePath} s3://mikehallstudio/fracto/images/ --acl public-read`
       console.log('uploading to s3', cmd)
       execSync(cmd)
       console.log('upload completed')
    } catch (e) {
       console.log('Error uploading to s3', e.message);
    }
-
    const time_5 = performance.now()
-   const result = {
+
+   result.performance = {
       fill_canvas_buffer: `${time_1 - time_0}`,
       buffer_to_canvas: `${time_2 - time_1}`,
       writeFileSync: `${time_3 - time_2}`,
@@ -136,5 +140,6 @@ app.get("/render_image", async (req, res) => {
       total: `${time_5 - time_0}`,
    }
    console.log('result', result)
+   res.status(200).send(result);
 
 });
