@@ -21,62 +21,44 @@ const image_dir = "./images";
 if (!fs.existsSync(image_dir)) {
    fs.mkdirSync(image_dir)
 }
+const thumbnails_dir = "./thumbnails";
+if (!fs.existsSync(thumbnails_dir)) {
+   fs.mkdirSync(thumbnails_dir)
+}
 
-import {
-   get_manifest,
-   init_canvas_buffer,
-   fill_canvas_buffer,
-} from "./fracto/FractoTileData.js"
+// import {
+//    get_manifest,
+//    init_canvas_buffer,
+//    fill_canvas_buffer,
+// } from "./fracto/FractoTileData.js"
 import FractoColors from "./fracto/FractoColors.js";
 
 const app = express();
 const PORT = server.port
 
-app.use(express.json({limit: '50mb'}));
+app.use(express.json({limit: '500mb'}));
 
 app.use(cors({
    origin: "*"
 }));
 
-let load_completed = false
-get_manifest(
-   (update_json) => {
-      console.log(`[${update_json.packet_index + 1}/${update_json.packet_count}]: ${update_json.manifest_file}`);
-   },
-   (complete_msg) => {
-      console.log(complete_msg);
-      load_completed = true
-      app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
-   },
-)
+app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
 
-// test with:
-// http://localhost:3005/render_image?re=-1.255429537592117&im=0.05058453422756254&scope=0.0932&aspect_ratio=1.0&width_px=500
-app.get("/render_image", async (req, res) => {
-   if (!load_completed) {
-      console.log('cannot render until load completed')
-      return
-   }
-   console.log('render_image params', JSON.stringify(req.query))
-   const focal_point = {
-      x: parseFloat(req.query.re),
-      y: parseFloat(req.query.im),
-   }
+// post version
+app.post("/render_image", async (req, res) => {
    const width_px = parseInt(req.query.width_px, 10)
    const aspect_ratio = parseFloat(req.query.aspect_ratio, 10)
    const height_px = width_px * aspect_ratio
    const scope = parseFloat(req.query.scope, 10)
-   const canvas_buffer = init_canvas_buffer(width_px, aspect_ratio)
-
-   const time_0 = performance.now()
-   await fill_canvas_buffer(
-      canvas_buffer,
-      width_px,
-      focal_point,
-      scope,
-      aspect_ratio
-   )
+   const focal_point = {
+      x: parseFloat(req.query.re),
+      y: parseFloat(req.query.im),
+   }
+   const canvas_buffer = req.body// JSON.parse(req.body);
    const time_1 = performance.now()
+   const collection = req.query.collection || "images";
+
+   console.log('render_image', width_px)
 
    const canvas = createCanvas(width_px, height_px);
    const ctx = canvas.getContext('2d');
@@ -85,7 +67,7 @@ app.get("/render_image", async (req, res) => {
 
    const random_name = `img_${Math.round(Math.random() * 100000000)}`
    const filename = `${random_name}.jpg`
-   const filePath = `./images/${filename}`
+   const filePath = `./${collection}/${filename}`
    try {
       const buffer = canvas.toBuffer('image/jpeg');
       fs.writeFileSync(filePath, buffer); // Saves as output.png
@@ -102,18 +84,19 @@ app.get("/render_image", async (req, res) => {
       focal_point,
       scope,
       filename,
-      public_url: `https://mikehallstudio.s3.us-east-1.amazonaws.com/fracto/images/${filename}`,
+      public_url: `https://mikehallstudio.s3.us-east-1.amazonaws.com/fracto/${collection}/${filename}`,
    }
 
    try {
       await exiftool.write(filePath, {
          Title: 'Your Title Here',
          Artist: 'Your Name Here',
-         Software: 'Fracto-image-server',
          Copyright: '(c) 2025 Fracto Chaotic Systems Group',
          DateTimeOriginal: new Date().toISOString(),
          Subject: 'fractals,math,art,mandelbrot',
-         Comments: JSON.stringify(result),
+         'XMP:Subject': 'fractals,math,art,mandelbrot',
+         Software: JSON.stringify(result),
+         'XMP:Description': JSON.stringify(result),
       });
       console.log('EXIF data added successfully!');
    } catch (err) {
@@ -122,7 +105,7 @@ app.get("/render_image", async (req, res) => {
    const time_4 = performance.now()
 
    try {
-      const cmd = `aws s3 cp ${filePath} s3://mikehallstudio/fracto/images/ --acl public-read`
+      const cmd = `aws s3 cp ${filePath} s3://mikehallstudio/fracto/${collection}/ --acl public-read`
       console.log('uploading to s3', cmd)
       execSync(cmd)
       console.log('upload completed')
@@ -132,14 +115,13 @@ app.get("/render_image", async (req, res) => {
    const time_5 = performance.now()
 
    result.performance = {
-      fill_canvas_buffer: `${time_1 - time_0}`,
       buffer_to_canvas: `${time_2 - time_1}`,
       writeFileSync: `${time_3 - time_2}`,
       exiftool: `${time_4 - time_3}`,
       s3_upload: `${time_5 - time_4}`,
-      total: `${time_5 - time_0}`,
+      total: `${time_5 - time_1}`,
    }
    console.log('result', result)
    res.status(200).send(result);
 
-});
+})

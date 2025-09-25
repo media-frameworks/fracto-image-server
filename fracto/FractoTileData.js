@@ -19,6 +19,14 @@ const AXIOS_CONFIG = {
    crossdomain: true,
 }
 
+export const FILTER_ALL_TILES = 'filter_all_tiles'
+export const GET_TILES_FROM_CACHE = 'get_tiles_from_cache'
+export const FILLING_CANVAS_BUFFER = 'filling_canvas_buffer'
+export const CALLBACK_BASIS = {
+   [GET_TILES_FROM_CACHE]: 0,
+   [FILLING_CANVAS_BUFFER]: 0,
+}
+
 export const get_manifest = async (on_update, on_complete) => {
    const url = `${FRACTO_PROD}/manifest/tiles/${TILE_SET_INDEXED}/packet_manifest.json`
    try {
@@ -66,27 +74,31 @@ export const get_tiles = (
    scope,
    aspect_ratio) => {
 
+   if (!focal_point) {
+      return []
+   }
    const all_tiles = []
    const height_px = width_px * aspect_ratio
    const tiles_on_edge_x = Math.ceil(width_px / 256) + 1;
    const tiles_on_edge_y = Math.ceil(height_px / 256) + 1;
    const max_tiles = Math.ceil(tiles_on_edge_x * tiles_on_edge_y + 1)
-   // console.log('get_tiles max_tiles', max_tiles)
    const min_level = 3
    const max_level = 30
    for (let level = min_level; level < max_level; level++) {
       const level_tiles = tiles_in_scope(
          level, focal_point, scope, aspect_ratio);
-      all_tiles.push({
-         level: level,
-         level_tiles: level_tiles
-      })
+      if (level_tiles.length) {
+         all_tiles.push({
+            level: level,
+            level_tiles: level_tiles
+         })
+      }
       if (level_tiles.length > max_tiles) {
          break;
       }
    }
-   return all_tiles.filter(tiles => tiles.level_tiles.length)
-      .sort((a, b) => a.level > b.level ? 1 : -1)
+   // Use a more efficient sort
+   return all_tiles.sort((a, b) => a.level - b.level)
 }
 
 const tiles_in_scope = (level, focal_point, scope, aspect_ratio = 1.0, set_name = TILE_SET_INDEXED) => {
@@ -99,53 +111,37 @@ const tiles_in_scope = (level, focal_point, scope, aspect_ratio = 1.0, set_name 
       bottom: focal_point.y - height_by_two,
    }
    const set_level = FractoIndexedTiles.get_set_level(set_name, level)
-   if (!set_level) {
-      console.log(`no bin for level ${level} of set_name ${set_name}`)
+   if (!set_level || !set_level.columns.length) {
       return []
    }
-   if (!set_level.columns.length) {
-      // console.log(`no columns for level ${level} of set_name ${set_name}`)
-      return []
+   // Filter columns in a single pass
+   const columns = []
+   for (let i = 0; i < set_level.columns.length; i++) {
+      const col = set_level.columns[i];
+      if (col.left > viewport.right) continue;
+      if (col.left + set_level.tile_size < viewport.left) continue;
+      columns.push(col);
    }
-   // console.log(`tiles_in_scope columns for level ${level}: ${set_level.columns.length}`)
-   const columns = set_level.columns
-      .filter(column => {
-         if (column.left > viewport.right) {
-            return false
-         }
-         if (column.left + set_level.tile_size < viewport.left) {
-            return false
-         }
-         return true;
-      })
-   let short_codes = []
+   const short_codes = []
    const max_y = viewport.top > Math.abs(viewport.bottom)
       ? viewport.top : Math.abs(viewport.bottom)
-   for (let column_index = 0; column_index < columns.length; column_index++) {
-      const tiles_in_column = columns[column_index].tiles
-      const column_left = columns[column_index].left
-      const column_tiles = tiles_in_column
-         .filter(tile => {
-            if (tile.bottom > max_y) {
-               return false
-            }
-            if (tile.bottom + set_level.tile_size < viewport.bottom) {
-               return false
-            }
-            return true
-         })
-         .map(tile => {
-            return {
-               bounds: {
-                  left: column_left,
-                  right: column_left + set_level.tile_size,
-                  bottom: tile.bottom,
-                  top: tile.bottom + set_level.tile_size
-               },
-               short_code: tile.short_code
-            }
-         })
-      short_codes = short_codes.concat(column_tiles)
+   for (let i = 0; i < columns.length; i++) {
+      const col = columns[i];
+      const col_left = col.left;
+      for (let j = 0; j < col.tiles.length; j++) {
+         const tile = col.tiles[j];
+         if (tile.bottom > max_y) continue;
+         if (tile.bottom + set_level.tile_size < viewport.bottom) continue;
+         short_codes.push({
+            bounds: {
+               left: col_left,
+               right: col_left + set_level.tile_size,
+               bottom: tile.bottom,
+               top: tile.bottom + set_level.tile_size
+            },
+            short_code: tile.short_code
+         });
+      }
    }
    return short_codes
 }
@@ -155,15 +151,15 @@ export const init_canvas_buffer = (width_px, aspect_ratio) => {
    if (height_px & 1) {
       height_px -= 1
    }
-   return new Array(width_px)
-      .fill(0)
-      .map((x_value, x_index) => {
-         return new Array(height_px)
-            .fill(0)
-            .map((y_value, y_index) => {
-               return [0, 4]
-            })
-      })
+   // Preallocate arrays for better performance
+   const buffer = new Array(width_px);
+   for (let x = 0; x < width_px; x++) {
+      buffer[x] = new Array(height_px);
+      for (let y = 0; y < height_px; y++) {
+         buffer[x][y] = [0, 4];
+      }
+   }
+   return buffer;
 }
 
 export const fill_canvas_buffer = async (
@@ -171,99 +167,126 @@ export const fill_canvas_buffer = async (
    width_px,
    focal_point,
    scope,
-   aspect_ratio) => {
-   const all_level_sets = []
-   get_tiles(width_px, focal_point, scope, aspect_ratio)
-      .forEach(level_set => {
-         all_level_sets.push(level_set)
-      })
-   console.log('all_level_sets.length', all_level_sets.length)
+   aspect_ratio,
+   update_callback = null,
+   update_status = null) => {
+
+   const all_level_sets = get_tiles(
+      width_px,
+      focal_point,
+      scope,
+      aspect_ratio)
+   if (update_callback) {
+      update_status[FILTER_ALL_TILES] = 1.0
+      update_callback(update_status)
+   }
+
+   let tile_count = 0
    const level_data_sets = all_level_sets
       .map(level_set => {
+         tile_count += level_set.level_tiles.length
          const tile_width =
             level_set.level_tiles[0].bounds.right
             - level_set.level_tiles[0].bounds.left
          level_set.tile_increment = tile_width / 256
          return level_set
       })
-      .sort((a, b) => a.level > b.level ? -1 : 1)
-   console.log('level_data_sets.length', level_data_sets.length)
-   level_data_sets.forEach(level_set => {
-      level_set.level_tiles.forEach(async tile => {
+      .sort((a, b) => b.level - a.level)
+
+   let tile_index = 0
+   for (const level_set of level_data_sets) {
+      for (const tile of level_set.level_tiles) {
+         tile_index++
          if (BAD_TILES[tile.short_code]) {
-            return;
+            continue;
+         }
+         if (update_callback) {
+            update_status[FILLING_CANVAS_BUFFER] = 0.0
+            update_status[GET_TILES_FROM_CACHE] = (tile_index + 1) / (tile_count + 1)
+            update_callback(update_status)
          }
          await FractoTileCache.get_tile(tile.short_code)
-      })
-   })
-   console.log('calling raster_fill')
+      }
+   }
+   if (update_callback) {
+      update_status[GET_TILES_FROM_CACHE] = 1.0
+      update_callback(update_status)
+   }
+
    await raster_fill(
       canvas_buffer,
       level_data_sets,
       width_px,
       focal_point,
       scope,
-      aspect_ratio
+      aspect_ratio,
+      update_callback,
+      update_status
    )
 }
 
-const raster_fill = async (
+export const raster_fill = async (
    canvas_buffer,
    level_data_sets,
    width_px,
    focal_point,
    scope,
-   aspect_ratio) => {
+   aspect_ratio,
+   update_callback = null,
+   update_status = null) => {
    if (!canvas_buffer) {
       return;
    }
    const canvas_increment = scope / width_px
    const height_px = width_px * aspect_ratio
-   const horz_scale = []
+   const horz_scale = new Array(width_px)
    for (let horz_x = 0; horz_x < width_px; horz_x++) {
       horz_scale[horz_x] = focal_point.x + (horz_x - width_px / 2) * canvas_increment
    }
-   const vert_scale = []
+   const vert_scale = new Array(height_px)
    for (let vert_y = 0; vert_y < height_px; vert_y++) {
       vert_scale[vert_y] = Math.abs(focal_point.y - (vert_y - height_px / 2) * canvas_increment)
    }
    let unfound = 0
    for (let canvas_x = 0; canvas_x < width_px; canvas_x++) {
+      if (update_callback) {
+         update_status[FILLING_CANVAS_BUFFER] = (canvas_x + 1) / (width_px + 1)
+         update_callback(update_status)
+      }
       const x = horz_scale[canvas_x]
       for (let canvas_y = 0; canvas_y < height_px; canvas_y++) {
          const y = vert_scale[canvas_y]
          let found_point = false
          for (let index = 0; index < level_data_sets.length; index++) {
             const level_data_set = level_data_sets[index]
-            const tile = level_data_set.level_tiles
-               .find(tile => tile.bounds.left <= x
-                  && tile.bounds.right >= x
-                  && tile.bounds.top >= y
-                  && tile.bounds.bottom <= y)
-            if (tile) {
-               if (BAD_TILES[tile.short_code]) {
-                  continue;
-               }
-               let tile_data = null
-               try {
-                  tile_data = await FractoTileCache.get_tile(tile.short_code)
-                  const tile_x = Math.floor(
-                     (x - tile.bounds.left) / level_data_set.tile_increment)
-                  const tile_y = Math.floor(
-                     (tile.bounds.top - y) / level_data_set.tile_increment)
-                  const pattern = tile_data[tile_x][tile_y][0]
-                  const iteration = tile_data[tile_x][tile_y][1]
-                  canvas_buffer[canvas_x][canvas_y] = [pattern, iteration]
-                  found_point = true
-               } catch (e) {
-                  if (!tile_data) {
-                     BAD_TILES[tile.short_code] = true
+            // Use for loop for faster search
+            for (let t = 0; t < level_data_set.level_tiles.length; t++) {
+               const tile = level_data_set.level_tiles[t];
+               if (tile.bounds.left <= x && tile.bounds.right >= x && tile.bounds.top >= y && tile.bounds.bottom <= y) {
+                  if (BAD_TILES[tile.short_code]) {
+                     continue;
                   }
-                  // console.log('canvas_buffer size error', canvas_x, canvas_y, e)
-                  continue;
+                  let tile_data = null
+                  try {
+                     const in_main_cardioid = FractoFastCalc.point_in_main_cardioid(x, y)
+                     const scalar = in_main_cardioid ? -1 : 1
+                     tile_data = await FractoTileCache.get_tile(tile.short_code)
+                     const tile_x = Math.floor((x - tile.bounds.left) / level_data_set.tile_increment)
+                     const tile_y = Math.floor((tile.bounds.top - y) / level_data_set.tile_increment)
+                     canvas_buffer[canvas_x][canvas_y] = tile_data && tile_data[tile_x]
+                        ? [scalar * tile_data[tile_x][tile_y][0], scalar * tile_data[tile_x][tile_y][1]]
+                        : [0, 4]
+                     found_point = true
+                  } catch (e) {
+                     if (!tile_data) {
+                        BAD_TILES[tile.short_code] = true
+                     }
+                     continue;
+                  }
+                  break;
                }
-               break;
             }
+            if (found_point) break;
          }
          if (!found_point) {
             unfound++
@@ -275,5 +298,4 @@ const raster_fill = async (
          }
       }
    }
-   console.log('unfound', unfound)
 }
