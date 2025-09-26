@@ -57,6 +57,9 @@ app.post("/render_image", async (req, res) => {
    const canvas_buffer = req.body// JSON.parse(req.body);
    const time_1 = performance.now()
    const collection = req.query.collection || "images";
+   const artist_email = req.query.artist_email || "unknown artist email";
+   const artist_name = req.query.artist_name || "unknown artist name";
+   const created = parseInt(req.query.created, 10)
 
    console.log('render_image', width_px)
 
@@ -78,21 +81,25 @@ app.post("/render_image", async (req, res) => {
    const time_3 = performance.now()
 
    const result = {
+      asset_id: random_name,
       width_px,
       height_px,
       aspect_ratio,
       focal_point,
       scope,
       filename,
+      artist_name,
+      artist_email,
+      created,
       public_url: `https://mikehallstudio.s3.us-east-1.amazonaws.com/fracto/${collection}/${filename}`,
    }
 
    try {
       await exiftool.write(filePath, {
-         Title: 'Your Title Here',
-         Artist: 'Your Name Here',
+         Title: 'Fracto Image Capture',
+         Artist: `${artist_name} (${artist_email})`,
          Copyright: '(c) 2025 Fracto Chaotic Systems Group',
-         DateTimeOriginal: new Date().toISOString(),
+         DateTimeOriginal: created,
          Subject: 'fractals,math,art,mandelbrot',
          'XMP:Subject': 'fractals,math,art,mandelbrot',
          Software: JSON.stringify(result),
