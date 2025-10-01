@@ -32,7 +32,8 @@ if (!fs.existsSync(thumbnails_dir)) {
 //    fill_canvas_buffer,
 // } from "./fracto/FractoTileData.js"
 import FractoColors from "./fracto/FractoColors.js";
-import {fill_canvas_buffer, init_canvas_buffer} from "./fracto/FractoTileData.js";
+import {fill_canvas_buffer, get_manifest, init_canvas_buffer} from "./fracto/FractoTileData.js";
+import FractoIndexedTiles from "./fracto/FractoIndexedTiles.js";
 
 const app = express();
 const PORT = server.port
@@ -43,7 +44,12 @@ app.use(cors({
    origin: "*"
 }));
 
-app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
+FractoIndexedTiles.init_tile_sets()
+get_manifest((file)=>{
+   console.log(file.manifest_file);
+}, ()=> {
+   app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
+})
 
 // post version
 app.post("/render_image", async (req, res) => {

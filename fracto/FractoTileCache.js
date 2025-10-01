@@ -9,8 +9,8 @@ setInterval(() => {
    FractoTileCache.trim_cache()
 }, 10000)
 
-const CACHE_TIMEOUT = 2 * 1000 * 60;
-const QUICK_CACHE_TIMEOUT = 1000 * 60;
+const CACHE_TIMEOUT = 5 * 1000 * 60;
+const QUICK_CACHE_TIMEOUT = 2 * 1000 * 60;
 const MIN_CACHE = 250
 const MAX_CACHE = 750
 
@@ -51,6 +51,7 @@ export class FractoTileCache {
          return CACHED_TILES[short_code].uncompressed;
       }
       if (FractoTileCache.error_count > 100) {
+         console.log('get_tile_url error_count > 100')
          return null;
       }
       const level = short_code.length
@@ -65,11 +66,11 @@ export class FractoTileCache {
                access_count: 1,
             }
          } else {
-            console.error('failed to decompress');
+            console.log('failed to decompress');
          }
          return uncompressed
       } catch (e) {
-         console.error(`get_tile error ${short_code}`, e.message)
+         console.log(`get_tile error ${short_code}`, e.message)
          FractoTileCache.error_count++
          return null
       }

@@ -41,7 +41,7 @@ export class FractoIndexedTiles {
    }
 
    static tile_set_is_loaded = (set_name) => {
-      console.log("FractoIndexedTiles.tile_sets_loaded", FractoIndexedTiles.tile_sets_loaded)
+      // console.log("FractoIndexedTiles.tile_sets_loaded", FractoIndexedTiles.tile_sets_loaded)
       return FractoIndexedTiles.tile_sets_loaded.includes(set_name);
    }
 

@@ -1,7 +1,23 @@
+import Complex from "../common/math/Complex.js";
 const MAX_ORBITAL_SIZE = 25000
 const MIN_ITERATION = 2000000 // 2 million
 
 export class FractoFastCalc {
+
+   static point_in_main_cardioid = (x0, y0) => {
+      const P = new Complex(x0, y0)
+      const negative_four_P = P.scale(-4)
+      const one_minus_four_p = negative_four_P.offset(1, 0)
+      const sqrt_one_minus_four_p = one_minus_four_p.sqrt()
+      const negative_sqrt_one_minus_four_p = sqrt_one_minus_four_p.scale(-1)
+      const one_minus_sqrt_one_minus_four_p = negative_sqrt_one_minus_four_p.offset(1, 0)
+      const magnitude = one_minus_sqrt_one_minus_four_p.magnitude()
+      if (magnitude < 0) {
+         return false
+      }
+
+      return magnitude <= 1;
+   }
 
    static super_calc = (x0, y0) => {
       if (FractoFastCalc.point_in_main_cardioid(x0, y0)) {
