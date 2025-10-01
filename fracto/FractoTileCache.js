@@ -1,7 +1,9 @@
 import network from "../common/config/network.json" with {type: 'json'}
+import server from "../common/config/server.json" with {type: 'json'}
 import {Buffer} from "buffer";
 import axios from "axios";
 import zlib from "zlib";
+import fs from "fs";
 
 export var CACHED_TILES = {}
 
@@ -30,16 +32,25 @@ export class FractoTileCache {
 
    static error_count = 0;
 
-   static get_tile_url = async (url) => {
+   static get_tile_url = async (remote_path) => {
       try {
-         const response = await axios.get(url, AXIOS_CONFIG);
-         const blob = new Blob([response.data], {type: 'application/gzip'});
-         const arrayBuffer = await blob.arrayBuffer();
+         let arrayBuffer = []
+         if (server.env !== 'local') {
+            const url = `${network["fracto-prod"]}/${remote_path}`
+            const response = await axios.get(url, AXIOS_CONFIG);
+            const blob = new Blob([response.data], {type: 'application/gzip'});
+            arrayBuffer = await blob.arrayBuffer();
+         } else {
+            const file_path = `${network["tiles_path"]}/${remote_path}`
+            const file_data = fs.readFileSync(file_path);
+            arrayBuffer = Buffer.from(file_data, 'utf8');
+            // console.log('tiles_path', file_path)
+         }
          const decompressed = zlib.gunzipSync(arrayBuffer);
          const ascii = Buffer.from(decompressed, 'ascii');
          return JSON.parse(ascii.toString());
       } catch (error) {
-         console.log('get_tile_url error', url, error.message);
+         console.log('get_tile_url error', error.message);
          return null
       }
    }
@@ -56,9 +67,9 @@ export class FractoTileCache {
       }
       const level = short_code.length
       const naught = level < 10 ? '0' : ''
-      const url = `${network["fracto-prod"]}/L${naught}${level}/${short_code}.gz`
+      const remote_path = `L${naught}${level}/${short_code}.gz`
       try {
-         const uncompressed = FractoTileCache.get_tile_url(url)
+         const uncompressed = FractoTileCache.get_tile_url(remote_path)
          if (uncompressed) {
             CACHED_TILES[short_code] = {
                uncompressed: uncompressed,
