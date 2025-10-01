@@ -132,7 +132,7 @@ dist
 # keys and secrets
 /archive/admin
 /tile-images
-/common
+/common/config
 package-lock.json
 /fracto-temp
 /images
