@@ -32,6 +32,7 @@ if (!fs.existsSync(thumbnails_dir)) {
 //    fill_canvas_buffer,
 // } from "./fracto/FractoTileData.js"
 import FractoColors from "./fracto/FractoColors.js";
+import {fill_canvas_buffer, init_canvas_buffer} from "./fracto/FractoTileData.js";
 
 const app = express();
 const PORT = server.port
@@ -54,7 +55,6 @@ app.post("/render_image", async (req, res) => {
       x: parseFloat(req.query.re),
       y: parseFloat(req.query.im),
    }
-   const canvas_buffer = req.body// JSON.parse(req.body);
    const time_1 = performance.now()
    const collection = req.query.collection || "images";
    const artist_email = req.query.artist_email || "unknown artist email";
@@ -62,6 +62,14 @@ app.post("/render_image", async (req, res) => {
    const created = parseInt(req.query.created, 10)
 
    console.log('render_image', width_px)
+
+   const canvas_buffer = init_canvas_buffer(width_px, 1.0);
+   await fill_canvas_buffer(
+      canvas_buffer,
+      width_px,
+      focal_point,
+      scope, 1.0,
+   )
 
    const canvas = createCanvas(width_px, height_px);
    const ctx = canvas.getContext('2d');
