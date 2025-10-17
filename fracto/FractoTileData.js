@@ -146,7 +146,7 @@ const tiles_in_scope = (level, focal_point, scope, aspect_ratio = 1.0, set_name 
       }
    }
    if (short_codes.length) {
-      console.log('tiles in scope', short_codes.length);
+      console.log(`level ${level}: `, short_codes.length);
    }
    return short_codes
 }
@@ -282,6 +282,10 @@ export const raster_fill = async (
                      const in_main_cardioid = FractoFastCalc.point_in_main_cardioid(x, y)
                      const scalar = in_main_cardioid ? -1 : 1
                      tile_data = await FractoTileCache.get_tile(tile.short_code)
+                     if (!tile_data) {
+                        BAD_TILES[tile.short_code] = true
+                        continue;
+                     }
                      const tile_x = Math.floor((x - tile.bounds.left) / level_data_set.tile_increment)
                      const tile_y = Math.floor((tile.bounds.top - y) / level_data_set.tile_increment)
                      canvas_buffer[canvas_x][canvas_y] = tile_data && tile_data[tile_x]
