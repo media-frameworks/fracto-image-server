@@ -34,6 +34,7 @@ if (!fs.existsSync(thumbnails_dir)) {
 import FractoColors from "./fracto/FractoColors.js";
 import {fill_canvas_buffer, get_manifest, init_canvas_buffer} from "./fracto/FractoTileData.js";
 import FractoIndexedTiles from "./fracto/FractoIndexedTiles.js";
+import FractoTileCache from "./fracto/FractoTileCache.js";
 
 const app = express();
 const PORT = server.port
@@ -76,6 +77,7 @@ app.post("/render_image", async (req, res) => {
       focal_point,
       scope, 1.0,
    )
+   FractoTileCache.trim_cache()
 
    const canvas = createCanvas(width_px, height_px);
    const ctx = canvas.getContext('2d');
