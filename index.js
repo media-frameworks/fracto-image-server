@@ -26,11 +26,6 @@ if (!fs.existsSync(thumbnails_dir)) {
    fs.mkdirSync(thumbnails_dir)
 }
 
-// import {
-//    get_manifest,
-//    init_canvas_buffer,
-//    fill_canvas_buffer,
-// } from "./fracto/FractoTileData.js"
 import FractoColors from "./fracto/FractoColors.js";
 import {fill_canvas_buffer, get_manifest, init_canvas_buffer} from "./fracto/FractoTileData.js";
 import FractoIndexedTiles from "./fracto/FractoIndexedTiles.js";
@@ -44,6 +39,15 @@ app.use(express.json({limit: '500mb'}));
 app.use(cors({
    origin: "*"
 }));
+
+app.use((req, res, next) => {
+   res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins
+   // Or specify a particular origin:
+   // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'); // Specify allowed methods
+   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Specify allowed headers
+   next();
+});
 
 FractoIndexedTiles.init_tile_sets()
 get_manifest((file)=>{
