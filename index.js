@@ -34,25 +34,29 @@ import FractoTileCache from "./fracto/FractoTileCache.js";
 const app = express();
 const PORT = server.port
 
+app.use(
+   cors({
+      origin: [
+         'https://fracto.mikehallstudio.com:3000',
+         'http://localhost:3000',
+         'https://localhost:3000',
+      ]
+   })
+);
 app.use(express.json({limit: '500mb'}));
-
-app.use(cors({
-   origin: "*"
-}));
 
 app.use((req, res, next) => {
    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins
    // Or specify a particular origin:
-   // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'); // Specify allowed methods
-   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Specify allowed headers
+   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With'); // Specify allowed headers
    next();
 });
 
 FractoIndexedTiles.init_tile_sets()
-get_manifest((file)=>{
+get_manifest((file) => {
    console.log(file.manifest_file);
-}, ()=> {
+}, () => {
    app.listen(PORT, () => console.log(`Server listening at port ${PORT}`));
 })
 
