@@ -1,4 +1,4 @@
-import network from "./../common/config/network.json" with { type: "json" };
+import network from "./../common/config/network.json" with {type: "json"};
 
 const URL_BASE = network["fracto-prod"];
 // const SERVER_BASE = network.fracto_server_url;
@@ -66,7 +66,7 @@ export class FractoIndexedTiles {
          return;
       }
       if (packet_data.columns.length) {
-         packet_data.columns.forEach(column=> set_level.columns.push(column))
+         packet_data.columns.forEach(column => set_level.columns.push(column))
       }
    }
 
@@ -106,7 +106,7 @@ export class FractoIndexedTiles {
                }
             })
          if (column_tiles.length) {
-            column_tiles.forEach(tile=> short_codes.push(tile))
+            column_tiles.forEach(tile => short_codes.push(tile))
          }
       }
       return short_codes.sort((a, b) => {
@@ -146,19 +146,20 @@ export class FractoIndexedTiles {
             return true;
          })
       let short_codes = []
+      console.log(`level ${level}: ${columns.length} columns`)
       for (let column_index = 0; column_index < columns.length; column_index++) {
          const tiles_in_column = columns[column_index].tiles
          const column_left = columns[column_index].left
          const column_tiles = tiles_in_column
             .filter(tile => {
-                  if (tile.bottom > viewport.top) {
-                     return false
-                  }
-                  if (tile.bottom + set_level.tile_size < viewport.bottom) {
-                     return false
-                  }
-                  return true
-               })
+               if (tile.bottom > viewport.top) {
+                  return false
+               }
+               if (tile.bottom + set_level.tile_size < viewport.bottom) {
+                  return false
+               }
+               return true
+            })
             .map(tile => {
                return {
                   bounds: {

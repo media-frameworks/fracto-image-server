@@ -1,0 +1,154 @@
+import {get_ideal_level} from "./FractoData.js";
+import FractoIndexedTiles from "./FractoIndexedTiles.js";
+import FractoUtil from "./FractoUtil.js";
+
+const MAX_LEVELS = 30; // Limit the number of levels processed
+const MAX_TILES_PER_LEVEL = 150000; // Limit tiles per level to avoid memory issues
+
+let all_indexed_tiles = []
+let all_blank_tiles = []
+let all_interior_tiles = []
+let all_needs_update = []
+
+export const initialize_coverage = (cb) => {
+   collect_category_tiles('indexed', result => {
+      console.log('indexed load complete', result.length);
+      all_indexed_tiles = result;
+      collect_category_tiles('blank', result => {
+         console.log('blank load complete', result.length);
+         all_blank_tiles = result;
+         collect_category_tiles('interior', result => {
+            console.log('interior load complete', result.length);
+            all_interior_tiles = result;
+            collect_category_tiles('needs_update', result => {
+               console.log('needs_update load complete', result.length);
+               all_needs_update = result;
+               const stats = {
+                  indexed: all_indexed_tiles.length,
+                  blank: all_blank_tiles.length,
+                  interior: all_interior_tiles.length,
+                  needs_update: all_needs_update.length,
+               }
+               cb(stats);
+            })
+         })
+      })
+   })
+}
+
+const collect_category_tiles = (tile_set_name, cb) => {
+   const result = []
+   for (let level = 0; level < 30; level++) {
+      result[level] = new Set()
+   }
+   FractoIndexedTiles.load_short_codes(tile_set_name, short_codes => {
+      short_codes.forEach(short_code => {
+         const level = short_code.length
+         if (!result[level]) {
+            return;
+         }
+         result[level].add(short_code)
+      })
+      cb(result)
+   })
+}
+
+export const detect_coverage = (focal_point, scope) => {
+
+   const tiles_in_scope = [];
+   const ideal_level = get_ideal_level(1024, scope, 1.5);
+   const max_levels = Math.min(MAX_LEVELS, ideal_level + 15); // Only process a few levels
+
+   for (let level = 2; level < 30; level++) {
+      const level_tiles = FractoIndexedTiles.tiles_in_scope(level, focal_point, scope);
+      if (level_tiles.length > MAX_TILES_PER_LEVEL) {
+         // Limit the number of tiles per level
+         continue
+      }
+      // console.log('level_tiles', level, level_tiles.length)
+      tiles_in_scope.push({
+         level: level,
+         tiles: level_tiles
+      });
+   }
+   const filtered_tiles_in_scope = tiles_in_scope.filter(scoped => scoped.tiles.length > 1);
+   console.log('filtered_tiles_in_scope', filtered_tiles_in_scope.length)
+
+   let all_tiles = [];
+   const coverage_data = filtered_tiles_in_scope.map(scoped => {
+      all_tiles = all_tiles.concat(scoped.tiles);
+      return {
+         level: scoped.level,
+         tile_count: scoped.tiles.length,
+         tiles: scoped.tiles,
+      };
+   });
+   if (filtered_tiles_in_scope.length) {
+      coverage_data.push({
+         level: filtered_tiles_in_scope[filtered_tiles_in_scope.length - 1].level + 1,
+         tile_count: 0,
+         tiles: [],
+      });
+   }
+   // Use Sets for faster lookups and to avoid duplicates
+   const can_do = new Set();
+   const blank_tiles = new Set();
+   const interior_tiles = new Set();
+   const needs_update = new Set();
+   console.log('processing all scoped tiles');
+   all_tiles.forEach(tile => {
+      const short_code = tile.short_code;
+      const level = short_code.length
+      const in_update = all_needs_update[level].has(short_code);
+      if (in_update) {
+         needs_update.add(short_code);
+      }
+      const new_level = short_code.length + 1;
+      for (let i = 0; i < 4; i++) {
+         const sc = `${short_code}${i}`;
+         const in_blank = all_blank_tiles[new_level]?.has(sc);
+         if (in_blank) {
+            blank_tiles.add(sc);
+         } else {
+            const in_indexed = all_indexed_tiles[new_level]?.has(sc);
+            const in_interior = all_interior_tiles[new_level]?.has(sc);
+            if (in_interior && !in_indexed) {
+               interior_tiles.add(sc);
+            } else {
+               if (!in_indexed) {
+                  can_do.add(sc);
+               }
+            }
+         }
+      }
+   });
+   console.log('mapping coverage data');
+   coverage_data.forEach(data => {
+      const filtered_by_level = Array.from(can_do)
+         .filter(cd => cd.length === data.level)
+         .map(short_code => ({
+            short_code,
+            bounds: FractoUtil.bounds_from_short_code(short_code)
+         }));
+      const blanks_by_level = Array.from(blank_tiles)
+         .filter(short_code => short_code.length === data.level);
+      const interiors_by_level = Array.from(interior_tiles)
+         .filter(short_code => short_code.length === data.level);
+      const needs_update_by_level = Array.from(needs_update)
+         .filter(short_code => short_code.length === data.level);
+      const interiors_with_bounds = interiors_by_level.map(short_code => ({
+         short_code,
+         bounds: FractoUtil.bounds_from_short_code(short_code)
+      }));
+      const needs_update_with_bounds = needs_update_by_level.map(short_code => ({
+         short_code,
+         bounds: FractoUtil.bounds_from_short_code(short_code)
+      }));
+      data.filtered_by_level = filtered_by_level;
+      data.blanks_by_level = blanks_by_level;
+      data.interiors_with_bounds = interiors_with_bounds
+      data.needs_update_with_bounds = needs_update_with_bounds
+      data.tile_count = data.tiles.length
+   });
+   return coverage_data
+}
