@@ -3,7 +3,7 @@ import FractoIndexedTiles from "./FractoIndexedTiles.js";
 import FractoUtil from "./FractoUtil.js";
 
 const MAX_LEVELS = 30; // Limit the number of levels processed
-const MAX_TILES_PER_LEVEL = 150000; // Limit tiles per level to avoid memory issues
+const MAX_TILES_PER_LEVEL = 250000; // Limit tiles per level to avoid memory issues
 
 let all_indexed_tiles = []
 let all_blank_tiles = []
