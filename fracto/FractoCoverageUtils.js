@@ -139,6 +139,10 @@ export const detect_coverage = (focal_point, scope) => {
          .filter(short_code => short_code.length === data.level);
       const needs_update_by_level = Array.from(needs_update)
          .filter(short_code => short_code.length === data.level);
+      const blanks_with_bounds = blanks_by_level.map(short_code => ({
+         short_code,
+         bounds: FractoUtil.bounds_from_short_code(short_code)
+      }));
       const interiors_with_bounds = interiors_by_level.map(short_code => ({
          short_code,
          bounds: FractoUtil.bounds_from_short_code(short_code)
@@ -148,7 +152,7 @@ export const detect_coverage = (focal_point, scope) => {
          bounds: FractoUtil.bounds_from_short_code(short_code)
       }));
       data.filtered_by_level = filtered_by_level;
-      data.blanks_by_level = blanks_by_level;
+      data.blanks_by_level = blanks_with_bounds;
       data.interiors_with_bounds = interiors_with_bounds
       data.needs_update_with_bounds = needs_update_with_bounds
       data.tile_count = data.tiles.length
