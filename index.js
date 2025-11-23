@@ -54,3 +54,7 @@ get_manifest((file) => {
 
 app.post("/render_image", handle_render_image)
 app.get("/tile_coverage", handle_tile_coverage)
+
+app.get("/video_start", handle_video_start)
+app.post("/video_frame", handle_video_frame)
+app.post("/video_end", handle_video_end)
