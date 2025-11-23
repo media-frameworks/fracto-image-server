@@ -63,14 +63,16 @@ export const detect_coverage = (focal_point, scope) => {
    for (let level = 2; level < 30; level++) {
       const level_tiles = FractoIndexedTiles.tiles_in_scope(level, focal_point, scope);
       if (level_tiles.length > MAX_TILES_PER_LEVEL) {
-         // Limit the number of tiles per level
-         continue
+         tiles_in_scope.push({
+            level: level,
+            tiles: []
+         });
+      } else {
+         tiles_in_scope.push({
+            level: level,
+            tiles: level_tiles
+         });
       }
-      // console.log('level_tiles', level, level_tiles.length)
-      tiles_in_scope.push({
-         level: level,
-         tiles: level_tiles
-      });
    }
    const filtered_tiles_in_scope = tiles_in_scope.filter(scoped => scoped.tiles.length > 1);
    console.log('filtered_tiles_in_scope', filtered_tiles_in_scope.length)
