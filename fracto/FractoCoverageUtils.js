@@ -62,24 +62,16 @@ export const detect_coverage = (focal_point, scope) => {
 
    for (let level = 2; level < 30; level++) {
       const level_tiles = FractoIndexedTiles.tiles_in_scope(level, focal_point, scope);
-      if (level_tiles.length > MAX_TILES_PER_LEVEL) {
-         tiles_in_scope.push({
-            level: level,
-            tiles: []
-         });
-      } else {
-         tiles_in_scope.push({
-            level: level,
-            tiles: level_tiles
-         });
-      }
+      tiles_in_scope.push({
+         level: level,
+         tiles: level_tiles
+      });
    }
+
    const filtered_tiles_in_scope = tiles_in_scope //.filter(scoped => scoped.tiles.length > 1);
    console.log('filtered_tiles_in_scope', filtered_tiles_in_scope.length)
 
-   let all_tiles = [];
    const coverage_data = filtered_tiles_in_scope.map(scoped => {
-      all_tiles = all_tiles.concat(scoped.tiles);
       return {
          level: scoped.level,
          tile_count: scoped.tiles.length,
@@ -93,38 +85,41 @@ export const detect_coverage = (focal_point, scope) => {
          tiles: [],
       });
    }
-   // Use Sets for faster lookups and to avoid duplicates
+// Use Sets for faster lookups and to avoid duplicates
    const can_do = new Set();
    const blank_tiles = new Set();
    const interior_tiles = new Set();
    const needs_update = new Set();
    console.log('processing all scoped tiles');
-   all_tiles.forEach(tile => {
-      const short_code = tile.short_code;
-      const level = short_code.length
-      const in_update = all_needs_update[level].has(short_code);
-      if (in_update) {
-         needs_update.add(short_code);
-      }
-      const new_level = short_code.length + 1;
-      for (let i = 0; i < 4; i++) {
-         const sc = `${short_code}${i}`;
-         const in_blank = all_blank_tiles[new_level]?.has(sc);
-         if (in_blank) {
-            blank_tiles.add(sc);
-         } else {
-            const in_indexed = all_indexed_tiles[new_level]?.has(sc);
-            const in_interior = all_interior_tiles[new_level]?.has(sc);
-            if (in_interior && !in_indexed) {
-               interior_tiles.add(sc);
+   coverage_data.forEach(cd => {
+      console.log(`level: ${cd.level}, tiles: ${cd.tiles.length}`)
+      cd.tiles.forEach(tile => {
+         const short_code = tile.short_code;
+         const level = cd.level
+         const in_update = all_needs_update[level].has(short_code);
+         if (in_update) {
+            needs_update.add(short_code);
+         }
+         const new_level = short_code.length + 1;
+         for (let i = 0; i < 4; i++) {
+            const sc = `${short_code}${i}`;
+            const in_blank = all_blank_tiles[new_level]?.has(sc);
+            if (in_blank) {
+               blank_tiles.add(sc);
             } else {
-               if (!in_indexed) {
-                  can_do.add(sc);
+               const in_indexed = all_indexed_tiles[new_level]?.has(sc);
+               const in_interior = all_interior_tiles[new_level]?.has(sc);
+               if (in_interior && !in_indexed) {
+                  interior_tiles.add(sc);
+               } else {
+                  if (!in_indexed) {
+                     can_do.add(sc);
+                  }
                }
             }
          }
-      }
-   });
+      });
+   })
    console.log('mapping coverage data');
    coverage_data.forEach(data => {
       const filtered_by_level = Array.from(can_do)
