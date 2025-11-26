@@ -74,7 +74,7 @@ export const detect_coverage = (focal_point, scope) => {
          });
       }
    }
-   const filtered_tiles_in_scope = tiles_in_scope.filter(scoped => scoped.tiles.length > 1);
+   const filtered_tiles_in_scope = tiles_in_scope //.filter(scoped => scoped.tiles.length > 1);
    console.log('filtered_tiles_in_scope', filtered_tiles_in_scope.length)
 
    let all_tiles = [];
