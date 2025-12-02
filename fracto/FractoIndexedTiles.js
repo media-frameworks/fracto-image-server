@@ -18,6 +18,45 @@ const ALL_TILE_SETS = [
    TILE_SET_UPDATED,
 ]
 
+import fetch from 'node-fetch';
+import csv from 'csv-parser';
+
+
+async function streamCsvFromUrl(url, cb) {
+   try {
+      // 1. Fetch the remote resource and get a readable stream
+      const response = await fetch(url);
+
+      if (!response.ok) {
+         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const results = [];
+
+      // 2. Pipe the response body stream to the csv-parser transform stream
+      response.body // This is a Node.js ReadableStream
+         .pipe(csv()) // Transform stream converts CSV chunks to JS objects
+         .on('data', (data) => {
+            // 3. Process each row of data as it comes in
+            results.push(data);
+            // console.log('Row:', data);
+         })
+         .on('end', () => {
+            // 4. Handle the end of the stream
+            console.log('Finished reading CSV file.');
+            console.log(`Total rows processed: ${results.length}`);
+            cb(results);
+            // console.log('All results:', results);
+         })
+         .on('error', (error) => {
+            // 5. Handle any errors during streaming or parsing
+            console.error('Error during CSV processing:', error);
+         });
+   } catch (error) {
+      console.error('Fetch operation failed:', error);
+   }
+}
+
+
 export class FractoIndexedTiles {
 
    static tile_set = null;
@@ -72,14 +111,7 @@ export class FractoIndexedTiles {
 
    static load_short_codes = (tile_set_name, cb) => {
       const directory_url = `${URL_BASE}/manifest/${tile_set_name}.csv`;
-      console.log('load_short_codes', directory_url)
-      fetch(directory_url)
-         .then(response => response.text())
-         .then(csv => {
-            const lines = csv.split("\n");
-            console.log(`load_short_codes ${tile_set_name} ${lines.length}`)
-            cb(lines.slice(1))
-         })
+      streamCsvFromUrl(directory_url, cb)
    }
 
    static tiles_in_level = (level, set_name = TILE_SET_INDEXED) => {

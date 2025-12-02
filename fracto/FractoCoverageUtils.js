@@ -58,7 +58,6 @@ export const detect_coverage = (focal_point, scope) => {
 
    const tiles_in_scope = [];
    const ideal_level = get_ideal_level(1024, scope, 1.5);
-   const max_levels = Math.min(MAX_LEVELS, ideal_level + 15); // Only process a few levels
 
    for (let level = 2; level < 30; level++) {
       const level_tiles = FractoIndexedTiles.tiles_in_scope(level, focal_point, scope);
