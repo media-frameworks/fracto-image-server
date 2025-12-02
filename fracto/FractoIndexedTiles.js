@@ -37,7 +37,7 @@ async function streamCsvFromUrl(url, cb) {
          .pipe(csv()) // Transform stream converts CSV chunks to JS objects
          .on('data', (data) => {
             // 3. Process each row of data as it comes in
-            results.push(data);
+            results.push(data.toString());
             // console.log('Row:', data);
          })
          .on('end', () => {
