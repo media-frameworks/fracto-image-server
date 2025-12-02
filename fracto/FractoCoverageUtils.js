@@ -48,7 +48,7 @@ const collect_category_tiles = (tile_set_name, cb) => {
             .replace('.gz', '')
          const level = short_code.length
          if (!result[level]) {
-            console.log('bad level/result', level, short_code, result[level])
+            // console.log('bad level/result', level, short_code, result[level])
             return;
          }
          result[level].add(short_code)
