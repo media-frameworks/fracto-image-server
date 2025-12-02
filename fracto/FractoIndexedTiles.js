@@ -115,7 +115,10 @@ export class FractoIndexedTiles {
 
    static load_short_codes = (tile_set_name, cb) => {
       const directory_url = `${URL_BASE}/manifest/${tile_set_name}.csv`;
-      streamCsvFromUrl(directory_url, cb)
+      streamCsvFromUrl(directory_url, result=>{
+         console.log(tile_set_name, result)
+         cb(result)
+      })
    }
 
    static tiles_in_level = (level, set_name = TILE_SET_INDEXED) => {
