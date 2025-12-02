@@ -38,11 +38,11 @@ async function streamCsvFromUrl(url, cb) {
          .pipe(csv()) // Transform stream converts CSV chunks to JS objects
          .on('data', (data) => {
             // 3. Process each row of data as it comes in
-            const strData = data.toString();
+            const strData = data;
             results.push(strData);
 
             if (results.length % 100000 === 0) {
-               console.log(results.length, JSON.parse(strData));
+               console.log(results.length, JSON.stringify(strData));
             }
          })
          .on('end', () => {
