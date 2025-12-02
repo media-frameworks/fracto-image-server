@@ -38,11 +38,11 @@ async function streamCsvFromUrl(url, cb) {
          .pipe(csv()) // Transform stream converts CSV chunks to JS objects
          .on('data', (data) => {
             // 3. Process each row of data as it comes in
-            const strData = data;
-            results.push(strData);
+            const jsonData = JSON.stringify(data);
+            results.push(jsonData.short_code);
 
             if (results.length % 100000 === 0) {
-               console.log(results.length, JSON.stringify(strData));
+               console.log(results.length, jsonData.short_code);
             }
          })
          .on('end', () => {
@@ -116,7 +116,7 @@ export class FractoIndexedTiles {
 
    static load_short_codes = (tile_set_name, cb) => {
       const directory_url = `${URL_BASE}/manifest/${tile_set_name}.csv`;
-      streamCsvFromUrl(directory_url, result=>{
+      streamCsvFromUrl(directory_url, result => {
          cb(result)
       })
    }
