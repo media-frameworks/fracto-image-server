@@ -44,10 +44,10 @@ const collect_category_tiles = (tile_set_name, cb) => {
    FractoIndexedTiles.load_short_codes(tile_set_name, short_codes => {
       short_codes.forEach(sc => {
          const short_code = sc
-            .trim()
             .replace('.gz', '')
          const level = short_code.length
          if (!result[level]) {
+            console.log('bad level/result', level, short_code, result[level])
             return;
          }
          result[level].add(short_code)

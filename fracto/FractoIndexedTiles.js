@@ -32,7 +32,7 @@ async function streamCsvFromUrl(url, cb) {
          throw new Error(`HTTP error! status: ${response.status}`);
       }
       results = []
-      
+
       // 2. Pipe the response body stream to the csv-parser transform stream
       response.body // This is a Node.js ReadableStream
          .pipe(csv()) // Transform stream converts CSV chunks to JS objects
@@ -40,7 +40,7 @@ async function streamCsvFromUrl(url, cb) {
             // 3. Process each row of data as it comes in
             results.push(data.toString());
 
-            if (results.length % 10000 === 0) {
+            if (results.length % 100000 === 0) {
                console.log(results.length);
             }
          })
