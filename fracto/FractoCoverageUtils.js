@@ -29,6 +29,7 @@ export const initialize_coverage = (cb) => {
                   interior: all_interior_tiles.length,
                   needs_update: all_needs_update.length,
                }
+               console.log(stats)
                cb(stats);
             })
          })
