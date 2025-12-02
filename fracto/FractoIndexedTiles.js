@@ -21,7 +21,7 @@ const ALL_TILE_SETS = [
 import fetch from 'node-fetch';
 import csv from 'csv-parser';
 
-const results = [];
+var results = [];
 
 async function streamCsvFromUrl(url, cb) {
    try {
@@ -31,7 +31,8 @@ async function streamCsvFromUrl(url, cb) {
       if (!response.ok) {
          throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      results = []
+      
       // 2. Pipe the response body stream to the csv-parser transform stream
       response.body // This is a Node.js ReadableStream
          .pipe(csv()) // Transform stream converts CSV chunks to JS objects
@@ -114,7 +115,6 @@ export class FractoIndexedTiles {
 
    static load_short_codes = (tile_set_name, cb) => {
       const directory_url = `${URL_BASE}/manifest/${tile_set_name}.csv`;
-      results = [];
       streamCsvFromUrl(directory_url, cb)
    }
 
